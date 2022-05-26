@@ -1,2 +1,2 @@
 <?php
-  echo $_REQUEST['method'];
+echo $_REQUEST['method'];

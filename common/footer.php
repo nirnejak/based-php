@@ -1,2 +1,2 @@
 <?php
-  echo "Cannot GET/"
+echo "Cannot GET/";
