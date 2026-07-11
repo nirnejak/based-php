@@ -1,0 +1,48 @@
+DirectoryIndex index.php
+
+# -MultiViews is NOT optional: with it on (the EA4 default), GET /users
+# content-negotiates straight to a stray users.php and never reaches the router.
+Options -Indexes -MultiViews
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # No RewriteBase. A relative substitution works at the document root AND in a
+  # subfolder (public_html/myapi/), which is the normal cPanel case.
+
+  # HTTPS by default. A bearer token over plain HTTP is a 24h password in the clear.
+  # cPanel AutoSSL gives free Let's Encrypt. Comment out for local plain-HTTP.
+  RewriteCond %{HTTPS} !=on
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+  # CGI/FastCGI strips the Authorization header, so every JWT request 401s on the
+  # host while working locally. Put it back.
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+  # Real assets only. Deliberately NOT a blanket -f check.
+  RewriteRule ^static/ - [L]
+
+  # Everything else is the app. The original query string carries over for free:
+  # never write `index.php?url=$1`, and never add [QSA].
+  RewriteRule ^ index.php [L]
+</IfModule>
+
+# Second layer, for hosts where AllowOverride disables mod_rewrite.
+# Dual syntax: a bare `Require all denied` is a hard 500 on Apache 2.2.
+<FilesMatch "(^\.|\.(env|sql|sh|md|log|bak|ini)$)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# If auth 401s on your host, uncomment the line below.
+# Do NOT ship it enabled: CGIPassAuth only exists in Apache 2.4.13+, and an
+# unknown directive is a hard 500 on the WHOLE SITE the moment you upload.
+# CGIPassAuth On
+
+# NEVER add php_value or php_flag here. They 500 under cPanel's PHP-FPM/CGI.
+# Use .user.ini instead.
